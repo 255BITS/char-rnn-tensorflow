@@ -1,6 +1,7 @@
 from __future__ import print_function
 import numpy as np
 import tensorflow as tf
+import hyperchamber as hc
 
 import argparse
 import time
@@ -9,6 +10,14 @@ from six.moves import cPickle
 
 from utils import TextLoader
 from model import Model
+
+hc.permute.set('grad_clip', [5, 15])
+hc.permute.set('seq_length', [50])
+hc.permute.set('num_epochs', [10])
+hc.permute.set('learning_rate', [0.002])
+hc.permute.set('num_layers', [2])
+hc.permute.set('rnn_size', [128, 256])
+hc.permute.set('model', ['lstm', 'gru', 'rnn'])
 
 def main():
     parser = argparse.ArgumentParser()
@@ -45,9 +54,23 @@ def main():
                             'model.ckpt-*'      : file(s) with model definition (created by tf)
                         """)
     args = parser.parse_args()
-    train(args)
+    for config in hc.configs(100):
+        train(args, config)
 
-def train(args):
+def hc_sample():
+    queries = ["I think therefore ", "The most important thing in life is ", "Once upon a time "]
+    samples = []
+    sample = tf.Graph()
+    with sample:
+        for query in queries:
+            text = sample_model.sample(sess, data_loader.chars, data_loader.vocab, prime=query)
+            sample = {"text":text, "label": query}
+            samples.append(sample)
+            print('sample', sample)
+        hc.sample(samples)
+
+
+def train(args, config):
     data_loader = TextLoader(args.data_dir, args.batch_size, args.seq_length)
     args.vocab_size = data_loader.vocab_size
     
@@ -79,7 +102,7 @@ def train(args):
     with open(os.path.join(args.save_dir, 'chars_vocab.pkl'), 'wb') as f:
         cPickle.dump((data_loader.chars, data_loader.vocab), f)
         
-    model = Model(args)
+    model = Model(args, config)
 
     with tf.Session() as sess:
         tf.initialize_all_variables().run()
@@ -97,15 +120,16 @@ def train(args):
                 feed = {model.input_data: x, model.targets: y, model.initial_state: state}
                 train_loss, state, _ = sess.run([model.cost, model.final_state, model.train_op], feed)
                 end = time.time()
+                hc_sample()
                 print("{}/{} (epoch {}), train_loss = {:.3f}, time/batch = {:.3f}" \
                     .format(e * data_loader.num_batches + b,
                             args.num_epochs * data_loader.num_batches,
                             e, train_loss, end - start))
-                if (e * data_loader.num_batches + b) % args.save_every == 0\
-                    or (e==args.num_epochs-1 and b == data_loader.num_batches-1): # save for the last result
-                    checkpoint_path = os.path.join(args.save_dir, 'model.ckpt')
-                    saver.save(sess, checkpoint_path, global_step = e * data_loader.num_batches + b)
-                    print("model saved to {}".format(checkpoint_path))
+                #if (e * data_loader.num_batches + b) % args.save_every == 0\
+                    #or (e==args.num_epochs-1 and b == data_loader.num_batches-1): # save for the last result
+                    #checkpoint_path = os.path.join(args.save_dir, 'model.ckpt')
+                    #saver.save(sess, checkpoint_path, global_step = e * data_loader.num_batches + b)
+                    #print("model saved to {}".format(checkpoint_path))
 
 if __name__ == '__main__':
     main()

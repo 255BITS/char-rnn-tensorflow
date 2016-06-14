@@ -5,8 +5,16 @@ from tensorflow.models.rnn import seq2seq
 import numpy as np
 
 class Model():
-    def __init__(self, args, infer=False):
+    def __init__(self, args, config=None, infer=False):
         self.args = args
+        if config:
+            args.model = config['model']
+            args.grad_clip = config['grad_clip']
+            args.seq_length = config['seq_length']
+            args.learning_rate = config['learning_rate']
+            args.num_layers = config['num_layers']
+            args.rnn_size = config['rnn_size']
+
         if infer:
             args.batch_size = 1
             args.seq_length = 1
