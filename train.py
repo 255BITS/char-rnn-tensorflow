@@ -120,11 +120,12 @@ def train(args, config):
                 feed = {model.input_data: x, model.targets: y, model.initial_state: state}
                 train_loss, state, _ = sess.run([model.cost, model.final_state, model.train_op], feed)
                 end = time.time()
-                hc_sample(sess, model, config, data_loader)
                 print("{}/{} (epoch {}), train_loss = {:.3f}, time/batch = {:.3f}" \
                     .format(e * data_loader.num_batches + b,
                             args.num_epochs * data_loader.num_batches,
                             e, train_loss, end - start))
+            print("Sampling at epoch:" + str(e))
+            hc_sample(sess, model, config, data_loader)
                 #if (e * data_loader.num_batches + b) % args.save_every == 0\
                     #or (e==args.num_epochs-1 and b == data_loader.num_batches-1): # save for the last result
                     #checkpoint_path = os.path.join(args.save_dir, 'model.ckpt')
